@@ -1,0 +1,76 @@
+services:
+    app:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile.dev
+        container_name: episode-duplicator
+        restart: unless-stopped
+        command: sh -c "php artisan migrate --force && php-fpm"
+        depends_on:
+            - postgres
+            - redis
+        volumes:
+            - .:/var/www
+        networks:
+            - episode-duplicator-network
+
+    worker:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile.dev
+        container_name: laravel-worker
+        command: php artisan queue:work --timeout=3600
+        depends_on:
+            - postgres
+            - redis
+        volumes:
+            - .:/var/www
+        networks:
+            - episode-duplicator-network
+
+    postgres:
+        image: postgres:15.0-alpine
+        container_name: postgres-db
+        environment:
+            POSTGRES_DB: ${DB_DATABASE}
+            POSTGRES_USER: ${DB_USERNAME}
+            POSTGRES_PASSWORD: ${DB_PASSWORD}
+        ports:
+            - "5432:5432"
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        networks:
+            - episode-duplicator-network
+
+    redis:
+        image: redis:alpine
+        container_name: redis-server
+        restart: unless-stopped
+        ports:
+            - "6379:6379"
+        volumes:
+            - redisdata:/data
+        networks:
+            - episode-duplicator-network
+
+    nginx:
+        image: nginx:alpine-slim
+        container_name: app-nginx
+        restart: unless-stopped
+        ports:
+            - "8000:80"
+        volumes:
+            - .:/var/www
+            - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf
+        networks:
+            - episode-duplicator-network
+        depends_on:
+            - app
+
+networks:
+    episode-duplicator-network:
+        driver: bridge
+
+volumes:
+    pgdata: ~
+    redisdata: ~
