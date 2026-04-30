@@ -1,0 +1,48 @@
+services:
+    app:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile.prod
+        container_name: episode-duplicator
+        restart: always
+        volumes:
+            -   .:/var/www
+        networks:
+            -   episode-duplicator-network
+    worker:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile.dev
+        container_name: laravel-worker
+        command: php artisan queue:work --timeout=3600
+        volumes:
+            -   .:/var/www
+        networks:
+            - episode-duplicator-network
+
+    postgres:
+        image: postgres:15.0-alpine
+        container_name: postgres-db
+        environment:
+            POSTGRES_DB: ${DB_DATABASE}
+            POSTGRES_USER: ${DB_USERNAME}
+            POSTGRES_PASSWORD: ${DB_PASSWORD}
+        volumes:
+            -   pgdata:/var/lib/postgresql/data
+        networks:
+            -  episode-duplicator-network
+
+    redis:
+        image: redis:alpine
+        container_name: redis-server
+        restart: always
+        volumes:
+            - redisdata:/data
+
+networks:
+    episode-duplicator-network:
+        driver: bridge
+
+volumes:
+    pgdata: ~
+    redisdata: ~
