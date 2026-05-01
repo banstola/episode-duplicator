@@ -14,7 +14,6 @@ Route::get('/health', function () {
     );
 });
 
-
 Route::prefix('v1')
     ->middleware(SecureApiKeyMiddleware::class)
     ->group(

@@ -20,6 +20,7 @@ class BlockFields extends Model
     use HasUuids;
 
     public const string BLOCK_FIELD_UUID = 'block_field_uuid';
+
     public const string BLOCK_UUID = 'block_uuid';
 
     protected $primaryKey = self::BLOCK_FIELD_UUID;

@@ -13,7 +13,7 @@ final readonly class RedisLockService implements LockServiceInterface
     {
         $acquired = Redis::set($lock, 1, 'EX', 10, 'NX');
 
-        if (!$acquired) {
+        if (! $acquired) {
             throw new \RuntimeException("Lock already exists for key: {$lock}");
         }
 

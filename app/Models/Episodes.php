@@ -21,7 +21,9 @@ class Episodes extends Model
     use HasUuids;
 
     public const string EPISODE_UUID = 'episode_uuid';
+
     public const string TITLE = 'title';
+
     public const string STATUS = 'status';
 
     protected $primaryKey = self::EPISODE_UUID;

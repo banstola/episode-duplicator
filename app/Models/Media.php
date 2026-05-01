@@ -21,7 +21,9 @@ class Media extends Model
     use HasUuids;
 
     public const string MEDIA_UUID = 'media_uuid';
+
     public const string BLOCK_UUID = 'block_uuid';
+
     public const string LOCATION = 'location';
 
     protected $primaryKey = self::MEDIA_UUID;

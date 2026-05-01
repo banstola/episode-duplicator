@@ -22,7 +22,9 @@ class Parts extends Model
     use HasUuids;
 
     public const string PART_UUID = 'part_uuid';
+
     public const string TITLE = 'title';
+
     public const string EPISODE_UUID = 'episode_uuid';
 
     protected $primaryKey = self::PART_UUID;

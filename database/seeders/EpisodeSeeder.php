@@ -31,7 +31,6 @@ class EpisodeSeeder extends Seeder
             ->each($this->getCreateEpisodeCallback());
     }
 
-
     private function getCreateEpisodeCallback(): \Closure
     {
         return function (Episodes $episode) {
@@ -40,7 +39,6 @@ class EpisodeSeeder extends Seeder
                 ->each($this->getCreatePartsCallback());
         };
     }
-
 
     private function getCreatePartsCallback(): \Closure
     {
@@ -61,7 +59,6 @@ class EpisodeSeeder extends Seeder
         };
 
     }
-
 
     private function getCreateBlockFieldAndMediaCallback(): \Closure
     {

@@ -15,7 +15,7 @@ class SecureApiKeyMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!$request->hasHeader('X-API-KEY')) {
+        if (! $request->hasHeader('X-API-KEY')) {
             return \response('MISSING_API_KEY', Response::HTTP_UNAUTHORIZED);
         }
 
@@ -24,7 +24,6 @@ class SecureApiKeyMiddleware
         if ($apiKey !== config('auth.api_key')) {
             return \response('UNAUTHORIZED', Response::HTTP_UNAUTHORIZED);
         }
-
 
         return $next($request);
 
