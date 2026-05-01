@@ -22,7 +22,8 @@ GET /health
 ```
 
 # Seeding the database
-1.
+1. `docker exec episode-duplicator php artisan db:seed --class=EpisodeSeeder`
+2. For the sake of simplicity, in this project - the rows limits are set at [EpisodeSeeder](database/seeders/EpisodeSeeder.php) using const
 
 
 
