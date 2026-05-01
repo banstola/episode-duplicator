@@ -12,17 +12,15 @@ final readonly class StatusResultTo
         public string $newEpisodeUuid,
         public ?string $startedAt,
         public ?string $completedAt,
-    ) {
-    }
-
+    ) {}
 
     public function toArray(): array
     {
         return [
-          'status' => $this->status,
-          'original_episode_uuid' => $this->originalEpisodeUuid,
-          'started_at' => $this->startedAt,
-          'completed_at' => $this->completedAt,
+            'status' => $this->status,
+            'original_episode_uuid' => $this->originalEpisodeUuid,
+            'started_at' => $this->startedAt,
+            'completed_at' => $this->completedAt,
         ];
 
     }

@@ -14,13 +14,10 @@ final readonly class ScheduleResultTo
         public int $totalBlocks,
         public int $totalBlockFields,
         public int $totalMedia
-    ) {
-
-    }
+    ) {}
 
     /**
      * This is not the optimal way - a hydrator could be used or spatie/data for example but for this demo stick to this
-     * @return array
      */
     public function toArray(): array
     {
@@ -31,7 +28,7 @@ final readonly class ScheduleResultTo
             'total_items' => $this->totalItems,
             'total_blocks' => $this->totalBlocks,
             'total_block_fields' => $this->totalBlockFields,
-            'total_media' => $this->totalMedia
+            'total_media' => $this->totalMedia,
 
         ];
     }

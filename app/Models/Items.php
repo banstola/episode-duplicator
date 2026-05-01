@@ -21,6 +21,7 @@ class Items extends Model
     use HasUuids;
 
     public const string ITEM_UUID = 'item_uuid';
+
     public const string PART_UUID = 'part_uuid';
 
     protected $primaryKey = self::ITEM_UUID;

@@ -17,12 +17,11 @@ use Psr\Log\LoggerInterface;
 final readonly class EpisodeDuplicationService
 {
     private const int DUPLICATE_EPISODE_LOCK_TTL = 2 * 60 * 60; // 2 hours
+
     public function __construct(
         private LoggerInterface $logger,
         private LockServiceInterface $lockService
-    ) {
-    }
-
+    ) {}
 
     public function schedule(string $originalEpisodeUuid): ScheduleResultTo
     {
@@ -34,7 +33,6 @@ final readonly class EpisodeDuplicationService
          * 4. Initiate the first fan-out Job
          * 5. Return the new uuid - for tracking status - cancelling etc
          */
-
         try {
             $this->lockService->acquireLock(LockKeyHelper::getDuplicateEpisodeKey($originalEpisodeUuid), self::DUPLICATE_EPISODE_LOCK_TTL);
         } catch (LockAcquireFailedException) {
@@ -53,9 +51,7 @@ final readonly class EpisodeDuplicationService
             0,
         );
 
-
     }
-
 
     public function getStatus(string $duplicateEpisodeUuid): StatusResultTo
     {
@@ -68,9 +64,7 @@ final readonly class EpisodeDuplicationService
             null,
         );
 
-
     }
-
 
     public function cancel(string $duplicateEpisodeUuid): CancelResultTo
     {
@@ -81,5 +75,4 @@ final readonly class EpisodeDuplicationService
         );
 
     }
-
 }

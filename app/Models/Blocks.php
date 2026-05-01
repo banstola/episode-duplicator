@@ -21,6 +21,7 @@ class Blocks extends Model
     use HasUuids;
 
     public const string BLOCK_UUID = 'block_uuid';
+
     public const string ITEM_UUID = 'item_uuid';
 
     protected $primaryKey = self::BLOCK_UUID;

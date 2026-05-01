@@ -13,10 +13,9 @@ use Symfony\Component\HttpFoundation\Response;
 final class EpisodeDuplicateController extends Controller
 {
     public function __construct(
-        private readonly LoggerInterface           $logger,
+        private readonly LoggerInterface $logger,
         private readonly EpisodeDuplicationService $duplicationService
-    ) {
-    }
+    ) {}
 
     public function scheduleEpisodeDuplication(EpisodeDuplicateRequest $request, string $originalEpisodeUuid): JsonResponse
     {
@@ -26,6 +25,7 @@ final class EpisodeDuplicateController extends Controller
 
         try {
             $result = $this->duplicationService->schedule($originalEpisodeUuid);
+
             return response()->json($result->toArray(), Response::HTTP_ACCEPTED);
         } catch (\Throwable $exception) {
 
@@ -33,17 +33,14 @@ final class EpisodeDuplicateController extends Controller
                 'exception' => $exception->getMessage(),
             ]);
 
-
         }
-
 
         return \response()->json(
             [
-                'error' => 'UNABLE_TO_PROCESS_REQUEST'
+                'error' => 'UNABLE_TO_PROCESS_REQUEST',
             ],
             Response::HTTP_INTERNAL_SERVER_ERROR,
         );
-
 
     }
 
