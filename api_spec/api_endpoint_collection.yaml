@@ -1,0 +1,83 @@
+openapi: 3.0.0
+info:
+  title: api_endpoint_collection
+  version: 1.0.0
+paths:
+  /api/health:
+    get:
+      summary: Health
+      operationId: users_ram-banstola_documents_bruno_episode_duplicator_health_yml
+      description: ''
+      tags:
+        - ''
+      responses:
+        '200':
+          description: ''
+      servers:
+        - url: http://localhost:8000
+  /api/v1/episode-duplicate/019de388-0ac2-7285-91f7-b6e20b59c1b2:
+    post:
+      summary: Schedule duplicate
+      operationId: >-
+        users_ram-banstola_documents_bruno_episode_duplicator_schedule_duplicate_yml
+      description: ''
+      tags:
+        - ''
+      responses:
+        '200':
+          description: ''
+      parameters:
+        - name: X-API-KEY
+          in: header
+          description: ''
+          required: true
+          schema:
+            type: string
+          example: static_bearer_token_for_demo_purpose_only
+      servers:
+        - url: http://localhost:8000
+    delete:
+      summary: Cancel duplication
+      operationId: >-
+        users_ram-banstola_documents_bruno_episode_duplicator_cancel_duplication_yml
+      description: ''
+      tags:
+        - ''
+      responses:
+        '200':
+          description: ''
+      parameters:
+        - name: X-API-KEY
+          in: header
+          description: ''
+          required: true
+          schema:
+            type: string
+          example: static_bearer_token_for_demo_purpose_only
+      servers:
+        - url: http://localhost:8000
+  /api/v1/episode-duplicate/019de388-0ac2-7285-91f7-b6e20b59c1b2/status:
+    get:
+      summary: Get status
+      operationId: users_ram-banstola_documents_bruno_episode_duplicator_get_status_yml
+      description: ''
+      tags:
+        - ''
+      responses:
+        '200':
+          description: ''
+      parameters:
+        - name: X-API-KEY
+          in: header
+          description: ''
+          required: true
+          schema:
+            type: string
+          example: static_bearer_token_for_demo_purpose_only
+      servers:
+        - url: http://localhost:8000
+servers: []
+components:
+  schemas: {}
+  requestBodies: {}
+  securitySchemes: {}
