@@ -14,10 +14,10 @@ The following preconditions must be met before proceeding further.
    1. Use `postgres` for `DATABASE_HOST` - Check [Docker Compose Local](docker-compose.yml) 
    2. User `redis` for `REDIS_HOST` - Check [Docker Compose Local](docker-compose.yml)
 3. Run `docker-compose up`
-4. Verify the application is using `curl http://localhost:8000/health`
+4. Verify the application is using `curl http://localhost:8000/api/health`
 
 ```
-GET /health
+GET /api/health
 {"status":"healthy","app_version":"dev"}
 ```
 
