@@ -1,22 +1,46 @@
 services:
+    migrate:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile.prod
+        container_name: laravel-migrate
+        command: php artisan migrate --force
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_started
+        volumes:
+            - .:/var/www
+        networks:
+            - episode-duplicator-network
+
     app:
         build:
             context: .
             dockerfile: docker/Dockerfile.prod
         container_name: episode-duplicator
         restart: always
+        depends_on:
+            migrate:
+                condition: service_completed_successfully
         volumes:
-            -   .:/var/www
+            - .:/var/www
         networks:
-            -   episode-duplicator-network
+            - episode-duplicator-network
+
     worker:
         build:
             context: .
-            dockerfile: docker/Dockerfile.dev
+            dockerfile: docker/Dockerfile.prod
         container_name: laravel-worker
         command: php artisan queue:work --timeout=3600
+        restart: always
+        depends_on:
+            migrate:
+                condition: service_completed_successfully
         volumes:
-            -   .:/var/www
+            - .:/var/www
         networks:
             - episode-duplicator-network
 
@@ -27,10 +51,16 @@ services:
             POSTGRES_DB: ${DB_DATABASE}
             POSTGRES_USER: ${DB_USERNAME}
             POSTGRES_PASSWORD: ${DB_PASSWORD}
+        restart: always
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+            interval: 3s
+            timeout: 3s
+            retries: 10
         volumes:
-            -   pgdata:/var/lib/postgresql/data
+            - pgdata:/var/lib/postgresql/data
         networks:
-            -  episode-duplicator-network
+            - episode-duplicator-network
 
     redis:
         image: redis:alpine
@@ -38,6 +68,8 @@ services:
         restart: always
         volumes:
             - redisdata:/data
+        networks:
+            - episode-duplicator-network
 
 networks:
     episode-duplicator-network:
