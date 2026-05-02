@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Helper\LogEvent;
 use App\Http\Requests\EpisodeDuplicateRequest;
 use App\Service\EpisodeDuplicationService;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +20,7 @@ final class EpisodeDuplicateController extends Controller
 
     public function scheduleEpisodeDuplication(EpisodeDuplicateRequest $request, string $originalEpisodeUuid): JsonResponse
     {
-        $this->logger->info('DUPLICATE_EPISODE_STARTED', [
+        $this->logger->info(LogEvent::DUPLICATION_SCHEDULED, [
             'episode_uuid' => $originalEpisodeUuid,
         ]);
 
@@ -28,12 +29,12 @@ final class EpisodeDuplicateController extends Controller
 
             return response()->json($result->toArray(), Response::HTTP_ACCEPTED);
         } catch (\RuntimeException $e) {
-            $this->logger->error('DUPLICATE_EPISODE_FAILED', [
+            $this->logger->error(LogEvent::DUPLICATION_FAILED, [
                 'episode_uuid' => $originalEpisodeUuid,
                 'error' => $e->getMessage(),
             ]);
 
-            $status = $e->getMessage() === 'DUPLICATION_IN_PROGRESS'
+            $status = $e->getMessage() === LogEvent::DUPLICATION_IN_PROGRESS
                 ? Response::HTTP_CONFLICT
                 : Response::HTTP_INTERNAL_SERVER_ERROR;
 
@@ -49,7 +50,7 @@ final class EpisodeDuplicateController extends Controller
             return response()->json($status->toArray());
         } catch (\RuntimeException) {
             return response()->json(
-                ['error' => 'DUPLICATION_NOT_FOUND'],
+                ['error' => LogEvent::DUPLICATION_NOT_FOUND],
                 Response::HTTP_NOT_FOUND,
             );
         }
@@ -60,14 +61,14 @@ final class EpisodeDuplicateController extends Controller
         try {
             $result = $this->duplicationService->cancel($duplicationId);
 
-            $this->logger->info('EPISODE_DUPLICATE_CANCELLED', [
+            $this->logger->info(LogEvent::DUPLICATION_CANCELLED, [
                 'duplication_id' => $duplicationId,
             ]);
 
             return response()->json($result->toArray());
         } catch (\RuntimeException) {
             return response()->json(
-                ['error' => 'DUPLICATION_NOT_FOUND'],
+                ['error' => LogEvent::DUPLICATION_NOT_FOUND],
                 Response::HTTP_NOT_FOUND,
             );
         }
