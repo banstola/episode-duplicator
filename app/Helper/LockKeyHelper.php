@@ -28,8 +28,13 @@ final readonly class LockKeyHelper
         return self::build(self::DUPLICATION_STATUS, ...$identifiers);
     }
 
-    public function getDuplicationCancelKey(string ...$identifiers): string
+    public static function getDuplicationCancelKey(string ...$identifiers): string
     {
         return self::build(self::DUPLICATION_CANCEL, ...$identifiers);
+    }
+
+    public static function getDuplicationStatusHashKey(string $duplicationId): string
+    {
+        return "duplication_status:{$duplicationId}";
     }
 }

@@ -27,38 +27,49 @@ final class EpisodeDuplicateController extends Controller
             $result = $this->duplicationService->schedule($originalEpisodeUuid);
 
             return response()->json($result->toArray(), Response::HTTP_ACCEPTED);
-        } catch (\Throwable $exception) {
-
+        } catch (\RuntimeException $e) {
             $this->logger->error('DUPLICATE_EPISODE_FAILED', [
-                'exception' => $exception->getMessage(),
+                'episode_uuid' => $originalEpisodeUuid,
+                'error' => $e->getMessage(),
             ]);
 
+            $status = $e->getMessage() === 'DUPLICATION_IN_PROGRESS'
+                ? Response::HTTP_CONFLICT
+                : Response::HTTP_INTERNAL_SERVER_ERROR;
+
+            return response()->json(['error' => $e->getMessage()], $status);
         }
-
-        return \response()->json(
-            [
-                'error' => 'UNABLE_TO_PROCESS_REQUEST',
-            ],
-            Response::HTTP_INTERNAL_SERVER_ERROR,
-        );
-
     }
 
-    public function getDuplicationStatus(EpisodeDuplicateRequest $request, string $duplicationId): JsonResponse
+    public function getDuplicationStatus(string $duplicationId): JsonResponse
     {
-        $status = $this->duplicationService->getStatus($duplicationId);
+        try {
+            $status = $this->duplicationService->getStatus($duplicationId);
 
-        return response()->json($status->toArray());
-
+            return response()->json($status->toArray());
+        } catch (\RuntimeException) {
+            return response()->json(
+                ['error' => 'DUPLICATION_NOT_FOUND'],
+                Response::HTTP_NOT_FOUND,
+            );
+        }
     }
 
-    public function cancelDuplication(EpisodeDuplicateRequest $request, string $duplicationId): JsonResponse
+    public function cancelDuplication(string $duplicationId): JsonResponse
     {
-        $this->logger->info('EPISODE_DUPLICATE_CANCELLED', [
-            'duplicate_episode_id' => $duplicationId,
-        ]);
-        $result = $this->duplicationService->cancel($duplicationId);
+        try {
+            $result = $this->duplicationService->cancel($duplicationId);
 
-        return response()->json($result->toArray());
+            $this->logger->info('EPISODE_DUPLICATE_CANCELLED', [
+                'duplication_id' => $duplicationId,
+            ]);
+
+            return response()->json($result->toArray());
+        } catch (\RuntimeException) {
+            return response()->json(
+                ['error' => 'DUPLICATION_NOT_FOUND'],
+                Response::HTTP_NOT_FOUND,
+            );
+        }
     }
 }
