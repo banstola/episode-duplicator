@@ -18,8 +18,11 @@ use Psr\Log\LoggerInterface;
 class EpisodeDuplicationServiceTest extends TestCase
 {
     private LoggerInterface&MockObject $logger;
+
     private LockServiceInterface&MockObject $lockService;
+
     private RedisServerInterface&MockObject $redis;
+
     private EpisodeDuplicationService $service;
 
     protected function setUp(): void

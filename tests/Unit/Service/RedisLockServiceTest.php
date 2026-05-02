@@ -13,6 +13,7 @@ use PHPUnit\Framework\TestCase;
 class RedisLockServiceTest extends TestCase
 {
     private RedisServerInterface&MockObject $redis;
+
     private RedisLockService $lockService;
 
     protected function setUp(): void
