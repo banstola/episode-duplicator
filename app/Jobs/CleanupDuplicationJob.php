@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Contracts\RedisServerInterface;
 use App\Helper\DuplicationRedisField;
 use App\Helper\DuplicationStatus;
 use App\Helper\LockKeyHelper;
@@ -18,7 +19,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
 
 class CleanupDuplicationJob implements ShouldQueue
 {
@@ -30,13 +30,15 @@ class CleanupDuplicationJob implements ShouldQueue
 
     private const int CHUNK_SIZE = 1000;
 
+    private const int STATUS_TTL_SECONDS = 86400;
+
     public function __construct(
         private readonly string $episodeUuid,
     ) {
         $this->onQueue('episode-duplication');
     }
 
-    public function handle(): void
+    public function handle(RedisServerInterface $redis): void
     {
         Log::info(LogEvent::CLEANUP_STARTED, [
             'episode_uuid' => $this->episodeUuid,
@@ -80,12 +82,11 @@ class CleanupDuplicationJob implements ShouldQueue
         }
 
         $statusKey = LockKeyHelper::getDuplicationStatusKey($this->episodeUuid);
-        Redis::hmset($statusKey, [
+        $redis->setHashFields($statusKey, [
             DuplicationRedisField::STATUS => DuplicationStatus::FAILED,
             DuplicationRedisField::FAILED_AT => Carbon::now('UTC')->format('Y-m-d H:i:s'),
         ]);
-
-        Redis::expire($statusKey, 86400);
+        $redis->setExpiry($statusKey, self::STATUS_TTL_SECONDS);
 
         Log::info(LogEvent::CLEANUP_COMPLETED, [
             'episode_uuid' => $this->episodeUuid,

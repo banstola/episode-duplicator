@@ -5,23 +5,26 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Contracts\LockServiceInterface;
+use App\Contracts\RedisServerInterface;
 use App\Service\Exception\LockAcquireFailedException;
-use Illuminate\Support\Facades\Redis;
 
 final readonly class RedisLockService implements LockServiceInterface
 {
+    public function __construct(
+        private RedisServerInterface $redis,
+    ) {}
+
     public function acquireLock(string $lock, int $ttl): void
     {
-        $acquired = Redis::set($lock, 1, 'EX', $ttl, 'NX');
+        $acquired = $this->redis->setIfNotExists($lock, 1, $ttl);
 
         if (! $acquired) {
             throw new LockAcquireFailedException("Lock already exists for key: {$lock}");
         }
-
     }
 
     public function releaseLock(string $lock): void
     {
-        Redis::del($lock);
+        $this->redis->delete($lock);
     }
 }

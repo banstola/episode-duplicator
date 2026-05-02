@@ -124,7 +124,7 @@ return [
         ],
 
         'emergency' => [
-            'path' => storage_path('logs/laravel.log'),
+            'path' => storage_path(\sprintf('logs/laravel-%s.log', date('Y-m-d'))),
         ],
 
     ],

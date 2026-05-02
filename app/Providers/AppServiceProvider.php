@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use App\Contracts\LockServiceInterface;
+use App\Contracts\RedisServerInterface;
 use App\Service\RedisLockService;
+use App\Service\RedisServer;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -13,6 +15,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(RedisServerInterface::class, RedisServer::class);
         $this->app->bind(LockServiceInterface::class, RedisLockService::class);
     }
 
