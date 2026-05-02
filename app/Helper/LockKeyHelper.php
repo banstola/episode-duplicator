@@ -32,9 +32,4 @@ final readonly class LockKeyHelper
     {
         return self::build(self::DUPLICATION_CANCEL, ...$identifiers);
     }
-
-    public static function getDuplicationStatusHashKey(string $duplicationId): string
-    {
-        return "duplication_status:{$duplicationId}";
-    }
 }
