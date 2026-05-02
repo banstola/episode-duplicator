@@ -34,7 +34,22 @@ services:
             context: .
             dockerfile: docker/Dockerfile.dev
         container_name: laravel-worker
-        command: php artisan queue:work --timeout=3600
+        command: php artisan queue:work --queue=default --timeout=3600
+        restart: unless-stopped
+        depends_on:
+            migrate:
+                condition: service_completed_successfully
+        volumes:
+            - .:/var/www
+        networks:
+            - episode-duplicator-network
+
+    worker-duplication:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile.dev
+        container_name: laravel-worker-duplication
+        command: php artisan queue:work --queue=episode-duplication --timeout=3600
         restart: unless-stopped
         depends_on:
             migrate:

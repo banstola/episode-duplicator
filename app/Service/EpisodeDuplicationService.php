@@ -8,7 +8,10 @@ use App\Contracts\LockServiceInterface;
 use App\Dto\CancelResultTo;
 use App\Dto\ScheduleResultTo;
 use App\Dto\StatusResultTo;
+use App\Helper\DuplicationRedisField;
+use App\Helper\DuplicationStatus;
 use App\Helper\LockKeyHelper;
+use App\Helper\LogEvent;
 use App\Jobs\CleanupDuplicationJob;
 use App\Jobs\DuplicateEpisodeJob;
 use App\Models\BlockFields;
@@ -28,7 +31,7 @@ use Psr\Log\LoggerInterface;
 
 final readonly class EpisodeDuplicationService
 {
-    private const int DUPLICATE_EPISODE_LOCK_TTL = 2 * 60 * 60; // 2 hours
+    private const int DUPLICATE_EPISODE_LOCK_TTL = 2 * 60 * 60;
 
     public function __construct(
         private LoggerInterface $logger,
@@ -42,9 +45,10 @@ final readonly class EpisodeDuplicationService
         try {
             $this->lockService->acquireLock($lockKey, self::DUPLICATE_EPISODE_LOCK_TTL);
         } catch (LockAcquireFailedException) {
-            throw new \RuntimeException('DUPLICATION_IN_PROGRESS');
+            throw new \RuntimeException(LogEvent::DUPLICATION_IN_PROGRESS);
         }
 
+        // at service level as well - lets make sure the episode is present
         Episodes::where(Episodes::EPISODE_UUID, $originalEpisodeUuid)->firstOrFail();
 
         $partUuidsQuery = Parts::where(Parts::EPISODE_UUID, $originalEpisodeUuid)->select(Parts::PART_UUID);
@@ -59,7 +63,7 @@ final readonly class EpisodeDuplicationService
 
         $newEpisodeUuid = Str::uuid7()->toString();
 
-        $this->logger->info('EPISODE_DUPLICATION_SCHEDULED', [
+        $this->logger->info(LogEvent::DUPLICATION_SCHEDULED, [
             'source_episode_uuid' => $originalEpisodeUuid,
             'new_episode_uuid' => $newEpisodeUuid,
             'total_parts' => $totalParts,
@@ -77,25 +81,27 @@ final readonly class EpisodeDuplicationService
         ])
             ->name(\sprintf('%s_%s', 'duplicate_episode', $originalEpisodeUuid))
             ->then(function (Batch $batch) use ($newEpisodeUuid) {
+                Episodes::where(Episodes::EPISODE_UUID, $newEpisodeUuid)
+                    ->update([Episodes::STATUS => 'active']);
+
                 $statusKey = LockKeyHelper::getDuplicationStatusKey($newEpisodeUuid);
                 Redis::hmset($statusKey, [
-                    'status' => 'completed',
-                    'completed_at' => Carbon::now('UTC')->format('Y-m-d H:i:s'),
+                    DuplicationRedisField::STATUS => DuplicationStatus::COMPLETED,
+                    DuplicationRedisField::COMPLETED_AT => Carbon::now('UTC')->format('Y-m-d H:i:s'),
                 ]);
                 Redis::expire($statusKey, 86400);
-                Log::info('EPISODE_DUPLICATION_COMPLETED', [
+                Log::info(LogEvent::DUPLICATION_COMPLETED, [
                     'duplication_id' => $newEpisodeUuid,
                     'batch_id' => $batch->id,
                 ]);
             })
             ->catch(function (Batch $batch, \Throwable $e) use ($newEpisodeUuid) {
-                Log::error('EPISODE_DUPLICATION_FAILED', [
+                Log::error(LogEvent::DUPLICATION_FAILED, [
                     'duplication_id' => $newEpisodeUuid,
                     'error' => $e->getMessage(),
                 ]);
                 CleanupDuplicationJob::dispatch(
-                    newEpisodeUuid: $newEpisodeUuid,
-                    duplicationId: $newEpisodeUuid,
+                    episodeUuid: $newEpisodeUuid,
                 );
             })
             ->finally(function () use ($lockKey) {
@@ -105,11 +111,11 @@ final readonly class EpisodeDuplicationService
 
         $statusKey = LockKeyHelper::getDuplicationStatusKey($newEpisodeUuid);
         Redis::hmset($statusKey, [
-            'status' => 'processing',
-            'source_episode_uuid' => $originalEpisodeUuid,
-            'new_episode_uuid' => $newEpisodeUuid,
-            'batch_id' => $batch->id,
-            'started_at' => Carbon::now('UTC')->format('Y-m-d H:i:s'),
+            DuplicationRedisField::STATUS => DuplicationStatus::PROCESSING,
+            DuplicationRedisField::SOURCE_EPISODE_UUID => $originalEpisodeUuid,
+            DuplicationRedisField::NEW_EPISODE_UUID => $newEpisodeUuid,
+            DuplicationRedisField::BATCH_ID => $batch->id,
+            DuplicationRedisField::STARTED_AT => Carbon::now('UTC')->format('Y-m-d H:i:s'),
         ]);
 
         return new ScheduleResultTo(
@@ -129,7 +135,7 @@ final readonly class EpisodeDuplicationService
         $data = Redis::hgetall($statusKey);
 
         if (empty($data)) {
-            throw new \RuntimeException('DUPLICATION_NOT_FOUND');
+            throw new \RuntimeException(LogEvent::DUPLICATION_NOT_FOUND);
         }
 
         $totalJobs = 0;
@@ -137,8 +143,8 @@ final readonly class EpisodeDuplicationService
         $failedJobs = 0;
         $progressPercent = null;
 
-        if (! empty($data['batch_id'])) {
-            $batch = Bus::findBatch($data['batch_id']);
+        if (! empty($data[DuplicationRedisField::BATCH_ID])) {
+            $batch = Bus::findBatch($data[DuplicationRedisField::BATCH_ID]);
             if ($batch) {
                 $totalJobs = $batch->totalJobs;
                 $pendingJobs = $batch->pendingJobs;
@@ -148,11 +154,11 @@ final readonly class EpisodeDuplicationService
         }
 
         return new StatusResultTo(
-            status: $data['status'] ?? 'unknown',
-            originalEpisodeUuid: $data['source_episode_uuid'] ?? '',
-            newEpisodeUuid: $data['new_episode_uuid'] ?? $duplicationId,
-            startedAt: $data['started_at'] ?? null,
-            completedAt: $data['completed_at'] ?? null,
+            status: $data[DuplicationRedisField::STATUS] ?? DuplicationStatus::UNKNOWN,
+            originalEpisodeUuid: $data[DuplicationRedisField::SOURCE_EPISODE_UUID] ?? '',
+            newEpisodeUuid: $data[DuplicationRedisField::NEW_EPISODE_UUID] ?? $duplicationId,
+            startedAt: $data[DuplicationRedisField::STARTED_AT] ?? null,
+            completedAt: $data[DuplicationRedisField::COMPLETED_AT] ?? null,
             totalJobs: $totalJobs,
             pendingJobs: $pendingJobs,
             failedJobs: $failedJobs,
@@ -163,36 +169,35 @@ final readonly class EpisodeDuplicationService
     public function cancel(string $duplicationId): CancelResultTo
     {
         $statusKey = LockKeyHelper::getDuplicationStatusKey($duplicationId);
-        // TODO calling hgetall etc like this is not really nice - extract to interface like RedisServerInterface
         $data = Redis::hgetall($statusKey);
 
         if (empty($data)) {
-            throw new \RuntimeException('DUPLICATION_NOT_FOUND');
+            throw new \RuntimeException(LogEvent::DUPLICATION_NOT_FOUND);
         }
 
-        if (! empty($data['batch_id'])) {
-            $batch = Bus::findBatch($data['batch_id']);
+        if (! empty($data[DuplicationRedisField::BATCH_ID])) {
+            $batch = Bus::findBatch($data[DuplicationRedisField::BATCH_ID]);
             $batch?->cancel();
         }
 
         CleanupDuplicationJob::dispatch(
-            newEpisodeUuid: $data['new_episode_uuid'] ?? $duplicationId
+            episodeUuid: $data[DuplicationRedisField::NEW_EPISODE_UUID] ?? $duplicationId,
         );
 
         $cancelledAt = Carbon::now('UTC')->format('Y-m-d H:i:s');
         Redis::hmset($statusKey, [
-            'status' => 'cancelled',
-            'cancelled_at' => $cancelledAt,
+            DuplicationRedisField::STATUS => DuplicationStatus::CANCELLED,
+            DuplicationRedisField::CANCELLED_AT => $cancelledAt,
         ]);
         Redis::expire($statusKey, 86400);
 
-        $this->logger->info('EPISODE_DUPLICATION_CANCELLED', [
+        $this->logger->info(LogEvent::DUPLICATION_CANCELLED, [
             'duplication_id' => $duplicationId,
         ]);
 
         return new CancelResultTo(
-            originalEpisodeUuid: $data['source_episode_uuid'] ?? '',
-            status: 'cancelled',
+            originalEpisodeUuid: $data[DuplicationRedisField::SOURCE_EPISODE_UUID] ?? '',
+            status: DuplicationStatus::CANCELLED,
             cancelledAt: $cancelledAt,
         );
     }

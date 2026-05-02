@@ -13,7 +13,7 @@ class EpisodesFactory extends Factory
     {
         return [
             'title' => fake()->sentence(3),
-            'status' => fake()->randomElement(['draft', 'active']),
+            'status' => 'active',
         ];
     }
 }
