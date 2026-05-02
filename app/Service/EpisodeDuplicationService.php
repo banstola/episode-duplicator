@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Contracts\LockServiceInterface;
+use App\Contracts\RedisServerInterface;
 use App\Dto\CancelResultTo;
 use App\Dto\ScheduleResultTo;
 use App\Dto\StatusResultTo;
@@ -25,7 +26,6 @@ use Illuminate\Bus\Batch;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
 use Psr\Log\LoggerInterface;
 
@@ -33,9 +33,12 @@ final readonly class EpisodeDuplicationService
 {
     private const int DUPLICATE_EPISODE_LOCK_TTL = 2 * 60 * 60;
 
+    private const int STATUS_TTL_SECONDS = 86400;
+
     public function __construct(
         private LoggerInterface $logger,
-        private LockServiceInterface $lockService
+        private LockServiceInterface $lockService,
+        private RedisServerInterface $redis,
     ) {}
 
     public function schedule(string $originalEpisodeUuid): ScheduleResultTo
@@ -48,7 +51,6 @@ final readonly class EpisodeDuplicationService
             throw new \RuntimeException(LogEvent::DUPLICATION_IN_PROGRESS);
         }
 
-        // at service level as well - lets make sure the episode is present
         Episodes::where(Episodes::EPISODE_UUID, $originalEpisodeUuid)->firstOrFail();
 
         $partUuidsQuery = Parts::where(Parts::EPISODE_UUID, $originalEpisodeUuid)->select(Parts::PART_UUID);
@@ -84,12 +86,14 @@ final readonly class EpisodeDuplicationService
                 Episodes::where(Episodes::EPISODE_UUID, $newEpisodeUuid)
                     ->update([Episodes::STATUS => 'active']);
 
+                $redis = app(RedisServerInterface::class);
                 $statusKey = LockKeyHelper::getDuplicationStatusKey($newEpisodeUuid);
-                Redis::hmset($statusKey, [
+                $redis->setHashFields($statusKey, [
                     DuplicationRedisField::STATUS => DuplicationStatus::COMPLETED,
                     DuplicationRedisField::COMPLETED_AT => Carbon::now('UTC')->format('Y-m-d H:i:s'),
                 ]);
-                Redis::expire($statusKey, 86400);
+                $redis->setExpiry($statusKey, self::STATUS_TTL_SECONDS);
+
                 Log::info(LogEvent::DUPLICATION_COMPLETED, [
                     'duplication_id' => $newEpisodeUuid,
                     'batch_id' => $batch->id,
@@ -110,7 +114,7 @@ final readonly class EpisodeDuplicationService
             ->dispatch();
 
         $statusKey = LockKeyHelper::getDuplicationStatusKey($newEpisodeUuid);
-        Redis::hmset($statusKey, [
+        $this->redis->setHashFields($statusKey, [
             DuplicationRedisField::STATUS => DuplicationStatus::PROCESSING,
             DuplicationRedisField::SOURCE_EPISODE_UUID => $originalEpisodeUuid,
             DuplicationRedisField::NEW_EPISODE_UUID => $newEpisodeUuid,
@@ -132,7 +136,7 @@ final readonly class EpisodeDuplicationService
     public function getStatus(string $duplicationId): StatusResultTo
     {
         $statusKey = LockKeyHelper::getDuplicationStatusKey($duplicationId);
-        $data = Redis::hgetall($statusKey);
+        $data = $this->redis->getHashAll($statusKey);
 
         if (empty($data)) {
             throw new \RuntimeException(LogEvent::DUPLICATION_NOT_FOUND);
@@ -169,7 +173,7 @@ final readonly class EpisodeDuplicationService
     public function cancel(string $duplicationId): CancelResultTo
     {
         $statusKey = LockKeyHelper::getDuplicationStatusKey($duplicationId);
-        $data = Redis::hgetall($statusKey);
+        $data = $this->redis->getHashAll($statusKey);
 
         if (empty($data)) {
             throw new \RuntimeException(LogEvent::DUPLICATION_NOT_FOUND);
@@ -185,11 +189,11 @@ final readonly class EpisodeDuplicationService
         );
 
         $cancelledAt = Carbon::now('UTC')->format('Y-m-d H:i:s');
-        Redis::hmset($statusKey, [
+        $this->redis->setHashFields($statusKey, [
             DuplicationRedisField::STATUS => DuplicationStatus::CANCELLED,
             DuplicationRedisField::CANCELLED_AT => $cancelledAt,
         ]);
-        Redis::expire($statusKey, 86400);
+        $this->redis->setExpiry($statusKey, self::STATUS_TTL_SECONDS);
 
         $this->logger->info(LogEvent::DUPLICATION_CANCELLED, [
             'duplication_id' => $duplicationId,
