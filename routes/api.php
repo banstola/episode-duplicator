@@ -19,7 +19,7 @@ Route::prefix('v1')
     ->group(
         function () {
             Route::post('/episode-duplicate/{episode_uuid}', [EpisodeDuplicateController::class, 'scheduleEpisodeDuplication']);
-            Route::get('/episode-duplicate/{episode_uuid}/status', [EpisodeDuplicateController::class, 'getDuplicationStatus']);
-            Route::delete('/episode-duplicate/{episode_uuid}', [EpisodeDuplicateController::class, 'cancelDuplication']);
+            Route::get('/episode-duplicate/{duplicationId}/status', [EpisodeDuplicateController::class, 'getDuplicationStatus']);
+            Route::delete('/episode-duplicate/{duplicationId}', [EpisodeDuplicateController::class, 'cancelDuplication']);
         }
     );
