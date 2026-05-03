@@ -15,3 +15,14 @@ Duplicate Episode workflow diagram available at [Mermaid Live Editor](https://me
 
 ## Database Schema - generated using PHPStorm
 ![Database Schema](./entity_relationship.png)
+
+
+# Production Deployment checklist for AWS
+
+What we need and why:
+
+1. ECR — private Docker image registry inside AWS
+2. RDS PostgreSQL — managed database, AWS handles backups and failover
+3. ElastiCache Redis — managed Redis for queues and locks
+4. ECS Fargate — runs our containers, no servers to manage
+5. ALB — load balancer, replaces nginx, handles HTTPS
