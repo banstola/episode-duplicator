@@ -1,7 +1,5 @@
 # Guide 
 
-_note_: This guide is applicable for macOS local environment.
-
 The following preconditions must be met before proceeding further.
 1. Linux Environment needed for running containerized applications eg. Rancher Desktop or Docker Desktop
 2. Verify using `docker version` and `docker-compose` that the environment is running Docker Desktop or Rancher Desktop
